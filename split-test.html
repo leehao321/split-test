@@ -485,7 +485,9 @@ const DATA = {
 /* 出口 IP 查询源 */
 const IP_SOURCES = {
   cn: [
-    { name: '测速网 speedtest.cn', type: 'json',  url: 'https://forge.speedtest.cn/api/location/info' },
+    { name: 'IPIP.net',            type: 'json',  url: 'https://myip.ipip.net/json' },
+    { name: '又拍云 upyun',        type: 'json',  url: 'https://pubstatic.b0.upaiyun.com/?_upnode' },
+    { name: '纯真 zxinc',          type: 'json',  url: 'https://ip.zxinc.org/api.php?type=json' },
     { name: '太平洋 pconline',     type: 'jsonp', url: 'https://whois.pconline.com.cn/ipJson.jsp?callback={cb}', charset: 'gbk' },
   ],
   intl: [
@@ -773,14 +775,20 @@ async function getJSON(url, timeout) {
 
 function parseIP(j) {
   const d = (j && j.data && typeof j.data === 'object') ? j.data : (j || {});
-  const ip = String(d.ip || d.IP || d.query || '').trim();
-  let loc = d.addr;
-  if (!loc) {
-    const parts = [d.country || d.country_name, d.province || d.pro || d.region || d.regionName, d.city, d.isp || d.org || d.organization]
-      .filter(Boolean).map(String);
-    loc = [...new Set(parts)].join(' · ');
+  const str = v => (typeof v === 'string' || typeof v === 'number') ? String(v).trim() : '';
+  const join = a => [...new Set(a.map(str).filter(Boolean))].join(' · ');
+  // 又拍云：remote_addr 才是访客 IP，addr 是它自己的节点 IP
+  if (d.remote_addr) {
+    const l = d.remote_addr_location || {};
+    return { ip: str(d.remote_addr), loc: join([l.country, l.province, l.city, l.isp]) };
   }
-  return { ip, loc: String(loc || '').trim() };
+  // 纯真 zxinc 的 ip 字段是对象，访客 IP 在 myip
+  const ip = str(d.ip) || str(d.myip) || str(d.IP) || str(d.query);
+  let loc;
+  if (Array.isArray(d.location)) loc = join(d.location);            // IPIP.net
+  else if (d.myip) loc = str(d.country) || str(d.location).replace(/\s*CZ88\.NET/i, '');
+  else loc = str(d.addr) || join([d.country || d.country_name, d.province || d.pro || d.region || d.regionName, d.city, d.isp || d.org || d.organization]);
+  return { ip, loc };
 }
 
 const maskIP = ip => {
