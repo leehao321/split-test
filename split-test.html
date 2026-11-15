@@ -39,7 +39,7 @@ h1 .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135d
 .panel-head h2{margin:0;font-size:15px}
 .panel-head .right{display:flex;gap:6px}
 .badge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.6px;padding:1px 6px;border-radius:5px;color:#fff;vertical-align:1px}
-.badge.us{background:var(--us)} .badge.cn{background:var(--cn)}
+.badge.us{background:var(--us)} .badge.cn{background:var(--cn)} .badge.gfw{background:#a855f7}
 
 .ip-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:760px){.ip-grid{grid-template-columns:1fr}}
@@ -84,7 +84,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
 .progress{height:2px;background:transparent;margin:0 -16px}
 .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--us),var(--cn));transition:width .25s}
 
-.summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px}
 @media (max-width:760px){.summary{grid-template-columns:1fr}}
 .sum-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
 .sum-top{display:flex;align-items:center;gap:8px;font-size:14px}
@@ -117,6 +117,11 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
 .host{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat{flex:none;color:var(--faint)}
 .meter{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--idle);transition:width .4s,background .3s}
+.gfw-bar{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.gfw-bar input{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:6px 10px;font:inherit;font-size:13px;color:var(--text)}
+.gfw-tip{color:var(--muted);font-size:12px;margin:0 0 10px}
+.del{flex:none;color:var(--faint);padding:0 3px;font-size:15px;line-height:1}
+.del:hover{color:var(--bad)}
 .tile.queued{opacity:.55}
 .tile.testing .lat{color:var(--muted);font-weight:500;font-family:inherit;font-size:12px}
 .tile.testing .meter{width:35%;background:var(--muted);animation:scan 1.1s linear infinite}
@@ -143,7 +148,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
   <header>
     <div>
       <h1><span class="dot"></span>分流测试</h1>
-      <div class="sub">100 个美国常见网站 + 100 个中国常见网站 · 出口 IP 对比 · 浏览器端连通性与延迟检测</div>
+      <div class="sub">100 个美国常见网站 + 100 个中国常见网站 · GFW 自选检测 · 出口 IP 对比 · 浏览器端连通性与延迟检测</div>
     </div>
     <div class="legend">
       <span><i style="background:var(--l1)"></i>≤200ms</span>
@@ -183,6 +188,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
         <button data-v="all" class="on">全部</button>
         <button data-v="us">美国</button>
         <button data-v="cn">中国</button>
+        <button data-v="gfw">GFW</button>
       </div>
       <label>超时
         <select id="timeout">
@@ -200,11 +206,18 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
           <option>16</option>
         </select>
       </label>
+      <label>测速
+        <select id="mode">
+          <option value="conn" selected>复用连接</option>
+          <option value="cold">首次请求</option>
+        </select>
+      </label>
       <label>轮次
         <select id="rounds">
-          <option value="1" selected>1</option>
+          <option value="1">1</option>
           <option value="2">2</option>
-          <option value="3">3</option>
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
         </select>
       </label>
       <label>排序
@@ -223,8 +236,21 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
   <div class="summary">
     <div class="sum-card" id="sum-us"></div>
     <div class="sum-card" id="sum-cn"></div>
+    <div class="sum-card" id="sum-gfw"></div>
   </div>
   <div id="hints"></div>
+
+  <section class="group" id="g-gfw">
+    <div class="group-head"><span class="badge gfw">GFW</span><h2>GFW 检测 · 自选列表</h2><span class="cnt" id="cnt-gfw"></span></div>
+    <div class="gfw-bar">
+      <input id="gfwInput" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="输入域名，可一次多个：x.com, t.me, pixiv.net">
+      <button class="btn" id="gfwAddBtn">添加</button>
+      <button class="btn" id="gfwRunBtn">只测此列表</button>
+      <button class="btn" id="gfwResetBtn">恢复默认</button>
+    </div>
+    <div class="gfw-tip">列表保存在本机浏览器里。点卡片单独重测，点 × 删除。「超时」和「阻断」都表示连不上，浏览器分辨不出是丢包、连接重置还是 DNS 问题。</div>
+    <div class="grid" id="grid-gfw"></div>
+  </section>
 
   <section class="group" id="g-us">
     <div class="group-head"><span class="badge us">US</span><h2>美国常见网站</h2><span class="cnt" id="cnt-us"></span></div>
@@ -239,7 +265,8 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
   <details class="notes">
     <summary>测试原理与注意事项</summary>
     <ul>
-      <li><b>怎么测的：</b>对每个站点请求 <code>https://域名/favicon.ico</code>（no-cors、不走缓存），记录从发起到收到响应的耗时。第一轮包含 DNS、TCP、TLS 建连时间；轮次设为 2 或 3 时，成功后会再测几次取最小值，这几次复用了连接，更接近真实往返延迟。</li>
+      <li><b>怎么测的：</b>浏览器里的网页发不了 CONNECT，也拿不到单独的 TCP 握手时间，只能发 HTTPS 请求。「复用连接」模式（默认）先请求一次 <code>https://域名/favicon.ico</code> 把连接建好（不计入结果），再在这条连接上发几次 HEAD 请求取最小值，得到的是一次往返加服务器处理的时间，最接近代理软件里的延迟数字。「首次请求」模式是老的测法，结果包含 DNS、TCP、TLS 建连时间。</li>
+      <li><b>GFW 自选列表：</b>填你关心的域名，页面按同样的方式测能否连上。结果只能说明「从当前浏览器能不能访问」：不可达可能是被墙，也可能是站点故障或被内容拦截器拦了。开着代理测，看的是代理规则有没有覆盖到；关掉代理测，看的才是直连是否被墙。</li>
       <li><b>怎么判断分流：</b>浏览器看不到每个请求具体走了哪条线路，所以主要看上方出口 IP：国内源和海外源查到的 IP 不同，说明分流生效；再结合两组站点的可达率和延迟判断规则有没有漏。</li>
       <li><b>「失败」</b>表示很快就报错（连接被重置、DNS 解析失败、被广告拦截插件拦截等）；<b>「超时」</b>表示在设定时间内没有任何响应。</li>
       <li>建议直接用电脑浏览器打开本文件测试。如果浏览器开了「安全 DNS」，或者浏览器的代理设置和代理软件不一致，结果可能和其它应用不同。</li>
@@ -499,15 +526,51 @@ const IP_SOURCES = {
 
 /* ===================== 基础 ===================== */
 const $ = s => document.querySelector(s);
-const CAT_ORDER = ['搜索门户','社交','影音','AI','开发云','科技','办公','知识','新闻','购物','生活','金融','游戏'];
-const GROUP = { us: { name: '美国', badge: 'US' }, cn: { name: '中国', badge: 'CN' } };
+const CAT_ORDER = ['搜索门户','社交','影音','AI','开发云','科技','办公','知识','新闻','购物','生活','金融','游戏','自选'];
+const GROUP = { us: { name: '美国', badge: 'US' }, cn: { name: '中国', badge: 'CN' }, gfw: { name: 'GFW 自选', badge: 'GFW' } };
+const GROUPS = ['us', 'cn', 'gfw'];
 const ST_LABEL = { idle: '未测', queued: '排队', testing: '测试中', ok: '可达', timeout: '超时', fail: '失败' };
 
+const mkSite = (g, i, name, host, cat) => ({ g, i, name, host, cat, st: 'idle', ms: null, first: null, elapsed: null, samples: [], el: null });
 const SITES = [];
-for (const g of ['us', 'cn']) {
-  DATA[g].forEach(([name, host, cat], i) =>
-    SITES.push({ g, i, name, host, cat, st: 'idle', ms: null, elapsed: null, samples: [], el: null }));
+for (const g of ['us','cn']) {
+  DATA[g].forEach(([name, host, cat], i) => SITES.push(mkSite(g, i, name, host, cat)));
 }
+
+/* GFW 自选列表（存在 localStorage） */
+const GFW_KEY = 'split-test.gfw.v1';
+const GFW_DEFAULT = ['www.google.com','www.youtube.com','www.facebook.com','x.com','www.instagram.com','telegram.org',
+  'www.wikipedia.org','www.reddit.com','chatgpt.com','claude.ai','github.com','discord.com','www.twitch.tv',
+  'www.pixiv.net','www.nytimes.com','www.bbc.com'];
+let gfwSeq = 0;
+const normHost = v => {
+  v = String(v || '').trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[\/?#].*$/, '')
+    .replace(/^.*@/, '').replace(/:\d+$/, '').replace(/^\.+|\.+$/g, '');
+  return /^[a-z0-9\u00a1-\uffff-]+(\.[a-z0-9\u00a1-\uffff-]+)+$/.test(v) ? v : '';
+};
+function loadGfw() {
+  try {
+    const a = JSON.parse(localStorage.getItem(GFW_KEY));
+    if (Array.isArray(a)) return [...new Set(a.map(normHost).filter(Boolean))];
+  } catch (e) {}
+  return GFW_DEFAULT.slice();
+}
+function saveGfw() {
+  try { localStorage.setItem(GFW_KEY, JSON.stringify(SITES.filter(s => s.g === 'gfw').map(s => s.host))); } catch (e) {}
+}
+function addGfw(host) {
+  if (SITES.some(s => s.g === 'gfw' && s.host === host)) return false;
+  const s = mkSite('gfw', gfwSeq++, host.replace(/^www\./, ''), host, '自选');
+  SITES.push(s);
+  makeTile(s);
+  return true;
+}
+function dropGfw(s) {
+  const k = SITES.indexOf(s);
+  if (k >= 0) SITES.splice(k, 1);
+  s.el.remove();
+}
+function listChanged() { saveGfw(); renderChips(); applyFilter(); renderSummary(); }
 
 let view = 'all', cat = '全部', running = false, token = 0, masked = false;
 const ctrls = new Set();
@@ -516,23 +579,32 @@ const lvl = ms => ms <= 200 ? 'l1' : ms <= 500 ? 'l2' : ms <= 1000 ? 'l3' : 'l4'
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /* ===================== 卡片 ===================== */
-function buildTiles() {
-  for (const g of ['us', 'cn']) {
-    const grid = $('#grid-' + g);
-    SITES.filter(s => s.g === g).forEach(s => {
-      const el = document.createElement('div');
-      el.className = 'tile idle';
-      el.innerHTML = '<div class="t1"><span class="name"></span><span class="lat num"></span></div>' +
-                     '<div class="t2"><span class="host"></span><span class="cat"></span></div><i class="meter"></i>';
-      el.querySelector('.name').textContent = s.name;
-      el.querySelector('.host').textContent = s.host;
-      el.querySelector('.cat').textContent = s.cat;
-      el.addEventListener('click', () => { if (!running) run([s]); });
-      s.el = el;
-      grid.appendChild(el);
-      paint(s);
+function makeTile(s) {
+  const el = document.createElement('div');
+  el.className = 'tile idle';
+  el.innerHTML = '<div class="t1"><span class="name"></span><span class="lat num"></span></div>' +
+                 '<div class="t2"><span class="host"></span>' +
+                 (s.g === 'gfw' ? '<span class="del" title="从列表删除">×</span>' : '<span class="cat"></span>') + '</div><i class="meter"></i>';
+  el.querySelector('.name').textContent = s.name;
+  el.querySelector('.host').textContent = s.host;
+  if (s.g === 'gfw') {
+    el.querySelector('.del').addEventListener('click', e => {
+      e.stopPropagation();
+      if (running) return;
+      dropGfw(s); listChanged();
     });
+  } else {
+    el.querySelector('.cat').textContent = s.cat;
   }
+  el.addEventListener('click', () => { if (!running) run([s]); });
+  s.el = el;
+  $('#grid-' + s.g).appendChild(el);
+  paint(s);
+}
+
+function buildTiles() {
+  SITES.forEach(makeTile);
+  loadGfw().forEach(addGfw);
 }
 
 function paint(s) {
@@ -544,11 +616,12 @@ function paint(s) {
     m.style.width = Math.max(6, Math.min(100, s.ms / 15)) + '%';
   } else {
     m.style.width = '';
-    lat.textContent = s.st === 'idle' ? '—' : ST_LABEL[s.st];
+    lat.textContent = s.st === 'idle' ? '—' : (s.g === 'gfw' && s.st === 'fail' ? '阻断' : ST_LABEL[s.st]);
   }
   el.className = cls;
   let tip = `${s.name}\nhttps://${s.host}\n`;
-  if (s.st === 'ok') tip += `延迟 ${s.ms} ms` + (s.samples.length > 1 ? `（各轮：${s.samples.join(' / ')} ms）` : '');
+  if (s.st === 'ok') tip += `延迟 ${s.ms} ms` + (s.samples.length > 1 ? `（各次：${s.samples.join(' / ')} ms）` : '') +
+    (s.first != null && s.first !== s.ms ? `\n首次请求（含建连）${s.first} ms` : '');
   else if (s.st === 'timeout') tip += `超时：${s.elapsed} ms 内无响应`;
   else if (s.st === 'fail') tip += `失败：${s.elapsed} ms 时报错`;
   el.title = tip + '\n点击单独重测';
@@ -569,10 +642,11 @@ function renderChips() {
 
 function applyFilter() {
   SITES.forEach(s => s.el.hidden = !visible(s));
-  for (const g of ['us', 'cn']) {
+  for (const g of GROUPS) {
     const n = SITES.filter(s => s.g === g && visible(s)).length;
-    $('#g-' + g).hidden = n === 0;
-    $('#cnt-' + g).textContent = n === DATA[g].length ? `${n} 个` : `显示 ${n} / ${DATA[g].length}`;
+    const all = SITES.filter(s => s.g === g).length;
+    $('#g-' + g).hidden = g === 'gfw' ? !(view === 'all' || view === 'gfw') : n === 0;
+    $('#cnt-' + g).textContent = n === all ? `${n} 个` : `显示 ${n} / ${all}`;
   }
 }
 
@@ -584,7 +658,7 @@ function sortKey(s) {
 }
 function applySort() {
   const byLat = $('#sort').value === 'lat';
-  for (const g of ['us', 'cn']) {
+  for (const g of GROUPS) {
     const arr = SITES.filter(s => s.g === g);
     arr.sort(byLat ? (a, b) => sortKey(a) - sortKey(b) || a.i - b.i : (a, b) => a.i - b.i);
     const grid = $('#grid-' + g);
@@ -593,7 +667,7 @@ function applySort() {
 }
 
 /* ===================== 测试 ===================== */
-async function probe(host, timeout) {
+async function probe(host, timeout, method) {
   const c = new AbortController();
   ctrls.add(c);
   let timedOut = false;
@@ -601,7 +675,7 @@ async function probe(host, timeout) {
   const url = `https://${host}/favicon.ico?_t=${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const t0 = performance.now();
   try {
-    await fetch(url, { mode: 'no-cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: c.signal });
+    await fetch(url, { method: method || 'GET', mode: 'no-cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: c.signal });
     return { ok: true, ms: Math.round(performance.now() - t0) };
   } catch (e) {
     return { ok: false, kind: timedOut ? 'timeout' : (c.signal.aborted ? 'stopped' : 'fail'), ms: Math.round(performance.now() - t0) };
@@ -613,15 +687,38 @@ async function probe(host, timeout) {
 
 async function testSite(s, opt, my) {
   s.st = 'testing'; paint(s);
-  const okms = []; let last = null;
-  for (let r = 0; r < opt.rounds; r++) {
-    const res = await probe(s.host, opt.timeout);
-    if (my !== token) { s.st = 'idle'; paint(s); return; }
-    last = res;
-    if (res.ok) okms.push(res.ms); else break;   // 失败/超时不再重复，节省时间
+  const bail = () => { s.st = 'idle'; paint(s); };
+  // 第一次请求：负责建连（DNS + TCP + TLS），同时判断可达性
+  const first = await probe(s.host, opt.timeout, 'GET');
+  if (my !== token) return bail();
+  if (!first.ok) {
+    s.st = first.kind === 'timeout' ? 'timeout' : 'fail';
+    s.ms = null; s.first = null; s.elapsed = first.ms; s.samples = [];
+    return paint(s);
   }
-  if (okms.length) { s.st = 'ok'; s.ms = Math.min(...okms); s.samples = okms; }
-  else { s.st = last.kind === 'timeout' ? 'timeout' : 'fail'; s.ms = null; s.elapsed = last.ms; s.samples = []; }
+  s.first = first.ms;
+  const okms = [];
+  if (opt.mode === 'cold') {
+    okms.push(first.ms);
+    for (let r = 1; r < opt.rounds; r++) {
+      const res = await probe(s.host, opt.timeout, 'GET');
+      if (my !== token) return bail();
+      if (res.ok) okms.push(res.ms); else break;
+    }
+  } else {
+    // 复用连接：在已建好的连接上测往返，取最小值
+    for (let r = 0; r < opt.rounds; r++) {
+      let res = await probe(s.host, opt.timeout, 'HEAD');
+      if (my !== token) return bail();
+      if (!res.ok && res.kind === 'fail') {            // 个别站点不接受 HEAD
+        res = await probe(s.host, opt.timeout, 'GET');
+        if (my !== token) return bail();
+      }
+      if (res.ok) okms.push(res.ms); else break;
+    }
+    if (!okms.length) okms.push(first.ms);             // 复用阶段全失败时退回首次耗时
+  }
+  s.st = 'ok'; s.ms = Math.min(...okms); s.samples = okms;
   paint(s);
 }
 
@@ -630,8 +727,8 @@ async function run(list) {
   running = true;
   const my = ++token;
   setRunningUI(true);
-  const opt = { timeout: +$('#timeout').value, conc: +$('#conc').value, rounds: +$('#rounds').value };
-  list.forEach(s => { s.st = 'queued'; s.ms = null; s.samples = []; paint(s); });
+  const opt = { timeout: +$('#timeout').value, conc: +$('#conc').value, rounds: +$('#rounds').value, mode: $('#mode').value };
+  list.forEach(s => { s.st = 'queued'; s.ms = null; s.first = null; s.samples = []; paint(s); });
   $('#hints').innerHTML = '';
   scheduleSummary();
 
@@ -703,11 +800,11 @@ function scheduleSummary() {
 }
 
 function renderSummary() {
-  for (const g of ['us', 'cn']) {
+  for (const g of GROUPS) {
     const st = gstats(g);
     const rate = st.done ? Math.round(st.ok / st.done * 100) + '<small>%</small>' : '—';
     const ms = v => v == null ? '—' : v + '<small>ms</small>';
-    const w = n => (n / st.total * 100) + '%';
+    const w = n => (st.total ? n / st.total * 100 : 0) + '%';
     $('#sum-' + g).innerHTML = `
       <div class="sum-top"><span class="badge ${g}">${GROUP[g].badge}</span><b>${GROUP[g].name}网站</b>
         <span class="done num">已测 ${st.done} / ${st.total}</span></div>
@@ -730,7 +827,7 @@ function renderHints() {
   const u = gstats('us'), c = gstats('cn');
   if (u.done && c.done && u.ok / u.done >= 0.9 && c.ok / c.done >= 0.9)
     out.push(['ok', `两组站点基本都能访问（美国 ${u.ok}/${u.done}，中国 ${c.ok}/${c.done}）。对照上方出口 IP，判断两类流量是否走了不同出口。`]);
-  for (const g of ['us', 'cn']) {
+  for (const g of ['us','cn']) {
     const st = gstats(g);
     if (!st.done) continue;
     const n = GROUP[g].name, rate = st.ok / st.done;
@@ -740,6 +837,14 @@ function renderHints() {
       out.push(['warn', `${n}站点有 ${st.done - st.ok} 个不可达，可点「重测失败」复查；个别站点也可能被广告拦截插件拦了，或是站点自身的问题。`]);
     if (st.med != null && st.med > 1500)
       out.push(['warn', `${n}站点中位延迟 ${st.med}ms，明显偏高，流量可能绕经远端节点；如果这些站点本应直连，请检查规则。`]);
+  }
+  const f = gstats('gfw');
+  if (f.done) {
+    const bad = SITES.filter(s => s.g === 'gfw' && (s.st === 'timeout' || s.st === 'fail'));
+    if (!bad.length) out.push(['ok', `GFW 自选列表 ${f.ok}/${f.done} 全部可达：当前网络能正常访问这些站点。`]);
+    else out.push([bad.length === f.done ? 'bad' : 'warn',
+      `GFW 自选列表有 ${bad.length}/${f.done} 个不可达：${bad.slice(0, 8).map(s => s.host).join('、')}${bad.length > 8 ? ' 等' : ''}。` +
+      `可能是被墙（代理没覆盖到这些域名），也可能是站点自身故障或被内容拦截器拦了。`]);
   }
   $('#hints').innerHTML = out.map(([k, t]) => `<div class="hint ${k}">${esc(t)}</div>`).join('');
 }
@@ -881,9 +986,9 @@ function verdictIP() {
 
 /* ===================== 导出 ===================== */
 function exportCSV() {
-  const rows = [['分组', '名称', '域名', '分类', '状态', '延迟(ms)', '各轮(ms)', '耗时(ms,失败/超时)']];
+  const rows = [['分组', '名称', '域名', '分类', '状态', '延迟(ms)', '各次(ms)', '首次含建连(ms)', '耗时(ms,失败/超时)']];
   SITES.forEach(s => rows.push([GROUP[s.g].name, s.name, s.host, s.cat, ST_LABEL[s.st],
-    s.st === 'ok' ? s.ms : '', s.samples.join('/'), (s.st === 'timeout' || s.st === 'fail') ? s.elapsed : '']));
+    s.st === 'ok' ? s.ms : '', s.samples.join('/'), s.st === 'ok' && s.first != null ? s.first : '', (s.st === 'timeout' || s.st === 'fail') ? s.elapsed : '']));
   const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const d = new Date(), p = n => String(n).padStart(2, '0');
   const a = document.createElement('a');
@@ -918,6 +1023,24 @@ $('#chips').addEventListener('click', e => {
   if (!b) return;
   cat = b.dataset.c;
   renderChips(); applyFilter();
+});
+
+function gfwAddFromInput() {
+  const inp = $('#gfwInput');
+  const hosts = inp.value.split(/[\s,，;；]+/).map(normHost).filter(Boolean);
+  if (!hosts.length) { inp.focus(); return; }
+  hosts.forEach(addGfw);
+  inp.value = '';
+  listChanged();
+}
+$('#gfwAddBtn').addEventListener('click', gfwAddFromInput);
+$('#gfwInput').addEventListener('keydown', e => { if (e.key === 'Enter') gfwAddFromInput(); });
+$('#gfwRunBtn').addEventListener('click', () => { if (!running) run(SITES.filter(s => s.g === 'gfw')); });
+$('#gfwResetBtn').addEventListener('click', () => {
+  if (running) return;
+  SITES.filter(s => s.g === 'gfw').forEach(dropGfw);
+  GFW_DEFAULT.forEach(addGfw);
+  listChanged();
 });
 
 buildTiles();
