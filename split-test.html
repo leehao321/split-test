@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff5f5f'/%3E%3Cpath d='M6.1 25.9A14 14 0 0 1 25.9 6.1z' fill='%234ea1ff'/%3E%3C/svg%3E">
 <title>分流测试 · 中美常见网站连通性与延迟</title>
 <style>
 :root{
@@ -84,8 +85,8 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
 .progress{height:2px;background:transparent;margin:0 -16px}
 .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--us),var(--cn));transition:width .25s}
 
-.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px}
-@media (max-width:760px){.summary{grid-template-columns:1fr}}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media (max-width:980px){.summary{grid-template-columns:1fr}}
 .sum-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
 .sum-top{display:flex;align-items:center;gap:8px;font-size:14px}
 .sum-top .done{margin-left:auto;color:var(--muted);font-size:12px}
@@ -122,6 +123,10 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
 .gfw-tip{color:var(--muted);font-size:12px;margin:0 0 10px}
 .del{flex:none;color:var(--faint);padding:0 3px;font-size:15px;line-height:1}
 .del:hover{color:var(--bad)}
+.dl{flex:none;font-size:11px;color:var(--faint)}
+.dl.up{color:var(--bad)}
+.dl.down{color:var(--l1)}
+.tile.old .lat,.tile.old .meter{opacity:.6}
 .tile.queued{opacity:.55}
 .tile.testing .lat{color:var(--muted);font-weight:500;font-family:inherit;font-size:12px}
 .tile.testing .meter{width:35%;background:var(--muted);animation:scan 1.1s linear infinite}
@@ -148,7 +153,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
   <header>
     <div>
       <h1><span class="dot"></span>分流测试</h1>
-      <div class="sub">100 个美国常见网站 + 100 个中国常见网站 · GFW 自选检测 · 出口 IP 对比 · 浏览器端连通性与延迟检测</div>
+      <div class="sub">105 个美国常见网站 + 100 个中国常见网站 · GFW 自选检测 · 出口 IP 对比 · 浏览器端连通性与延迟检测</div>
     </div>
     <div class="legend">
       <span><i style="background:var(--l1)"></i>≤200ms</span>
@@ -227,6 +232,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
         </select>
       </label>
       <button class="btn" id="csvBtn">导出 CSV</button>
+      <button class="btn" id="clearBtn">清除记录</button>
       <span class="prog-text num" id="prog">点击「开始测试」测试当前显示的站点</span>
     </div>
     <div class="chips" id="chips"></div>
@@ -248,7 +254,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
       <button class="btn" id="gfwRunBtn">只测此列表</button>
       <button class="btn" id="gfwResetBtn">恢复默认</button>
     </div>
-    <div class="gfw-tip">列表保存在本机浏览器里。点卡片单独重测，点 × 删除。「超时」和「阻断」都表示连不上，浏览器分辨不出是丢包、连接重置还是 DNS 问题。</div>
+    <div class="gfw-tip">默认只放美国组里没有的站点（Google、YouTube、X 等已在美国组）。列表保存在本机浏览器里。点卡片单独重测，点 × 删除。「超时」和「阻断」都表示连不上，浏览器分辨不出是丢包、连接重置还是 DNS 问题。</div>
     <div class="grid" id="grid-gfw"></div>
   </section>
 
@@ -265,11 +271,12 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:7px;pa
   <details class="notes">
     <summary>测试原理与注意事项</summary>
     <ul>
-      <li><b>怎么测的：</b>浏览器里的网页发不了 CONNECT，也拿不到单独的 TCP 握手时间，只能发 HTTPS 请求。「复用连接」模式（默认）先请求一次 <code>https://域名/favicon.ico</code> 把连接建好（不计入结果），再在这条连接上发几次 HEAD 请求取最小值，得到的是一次往返加服务器处理的时间，最接近代理软件里的延迟数字。「首次请求」模式是老的测法，结果包含 DNS、TCP、TLS 建连时间。</li>
+      <li><b>怎么测的：</b>浏览器里的网页发不了 CONNECT，也拿不到单独的 TCP 握手时间，只能发 HTTPS 请求。「复用连接」模式（默认）先请求一次 <code>https://域名/favicon.ico</code> 把连接建好（不计入结果），再在这条连接上发几次 HEAD 请求取最小值，得到的是一次往返加服务器处理的时间，比首次请求更接近代理软件里的延迟数字。前提是连接真的被复用了：经过代理时，浏览器或代理软件可能给每个请求新开一条隧道，这时数字里仍然含建连时间，会偏大，不能据此断定节点慢。「首次请求」模式是老的测法，结果包含 DNS、TCP、TLS 建连时间。</li>
       <li><b>GFW 自选列表：</b>填你关心的域名，页面按同样的方式测能否连上。结果只能说明「从当前浏览器能不能访问」：不可达可能是被墙，也可能是站点故障或被内容拦截器拦了。开着代理测，看的是代理规则有没有覆盖到；关掉代理测，看的才是直连是否被墙。</li>
       <li><b>怎么判断分流：</b>浏览器看不到每个请求具体走了哪条线路，所以主要看上方出口 IP：国内源和海外源查到的 IP 不同，说明分流生效；再结合两组站点的可达率和延迟判断规则有没有漏。</li>
       <li><b>「失败」</b>表示很快就报错（连接被重置、DNS 解析失败、被广告拦截插件拦截等）；<b>「超时」</b>表示在设定时间内没有任何响应。</li>
       <li>建议直接用电脑浏览器打开本文件测试。如果浏览器开了「安全 DNS」，或者浏览器的代理设置和代理软件不一致，结果可能和其它应用不同。</li>
+      <li><b>历史对比：</b>每个站点最近两次的结果存在本机浏览器里，刷新后还在。卡片右下角的 ↑/↓ 是和上一次相比延迟变化的毫秒数（相差不到 20ms 显示 ≈），出口 IP 变了会在提示里说明。点「清除记录」可以清空。</li>
       <li>点击任意卡片可以单独重测该站点。站点列表在源码的 <code>DATA</code> 里，可以自行增删。</li>
     </ul>
   </details>
@@ -298,6 +305,8 @@ const DATA = {
     ['Quora','www.quora.com','社交'],
     ['Threads','www.threads.com','社交'],
     ['WhatsApp','www.whatsapp.com','社交'],
+    ['TikTok','www.tiktok.com','社交'],
+    ['Telegram Web','web.telegram.org','社交'],
     // 影音
     ['YouTube','www.youtube.com','影音'],
     ['Netflix','www.netflix.com','影音'],
@@ -309,6 +318,7 @@ const DATA = {
     ['Paramount+','www.paramountplus.com','影音'],
     ['Peacock','www.peacocktv.com','影音'],
     ['Vimeo','vimeo.com','影音'],
+    ['Spotify','open.spotify.com','影音'],
     // AI
     ['ChatGPT','chatgpt.com','AI'],
     ['OpenAI','openai.com','AI'],
@@ -342,6 +352,8 @@ const DATA = {
     ['Adobe','www.adobe.com','科技'],
     ['Oracle','www.oracle.com','科技'],
     ['Google Play','play.google.com','科技'],
+    ['App Store','apps.apple.com','科技'],
+    ['iCloud','www.icloud.com','科技'],
     // 办公
     ['Gmail','mail.google.com','办公'],
     ['Google Drive','drive.google.com','办公'],
@@ -531,17 +543,54 @@ const GROUP = { us: { name: '美国', badge: 'US' }, cn: { name: '中国', badge
 const GROUPS = ['us', 'cn', 'gfw'];
 const ST_LABEL = { idle: '未测', queued: '排队', testing: '测试中', ok: '可达', timeout: '超时', fail: '失败' };
 
-const mkSite = (g, i, name, host, cat) => ({ g, i, name, host, cat, st: 'idle', ms: null, first: null, elapsed: null, samples: [], el: null });
+const mkSite = (g, i, name, host, cat) => ({ g, i, name, host, cat, st: 'idle', ms: null, first: null, elapsed: null, samples: [], el: null, old: false });
 const SITES = [];
 for (const g of ['us','cn']) {
   DATA[g].forEach(([name, host, cat], i) => SITES.push(mkSite(g, i, name, host, cat)));
 }
 
+/* 历史结果（存在 localStorage）：每个站点保留最近两次，l = 最近一次，p = 再上一次 */
+const HIST_KEY = 'split-test.hist.v1', RUN_KEY = 'split-test.run.v1';
+const loadObj = k => { try { const o = JSON.parse(localStorage.getItem(k)); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
+let HIST = loadObj(HIST_KEY), RUN = loadObj(RUN_KEY), runNote = '';
+const hkey = s => s.g + '|' + s.host;
+const saveHist = () => { try { localStorage.setItem(HIST_KEY, JSON.stringify(HIST)); localStorage.setItem(RUN_KEY, JSON.stringify(RUN)); } catch (e) {} };
+const fmtT = t => { const d = new Date(t), p = n => String(n).padStart(2, '0'); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const firstIp = rows => (rows.find(r => r.ip) || {}).ip || '';
+function ipTag() {
+  const c = firstIp(ipRows.cn), i = firstIp(ipRows.intl);
+  if (!c && !i) return '';
+  return c === i ? c : `国内 ${c || '?'} / 海外 ${i || '?'}`;
+}
+function record(s) {
+  if (s.st !== 'ok' && s.st !== 'timeout' && s.st !== 'fail') return;
+  const e = HIST[hkey(s)] || (HIST[hkey(s)] = {});
+  if (e.l) e.p = e.l;
+  e.l = { st: s.st, ms: s.ms, el: s.elapsed, t: Date.now(), ip: ipTag() };
+}
+function restoreSite(s) {
+  const e = HIST[hkey(s)];
+  if (!e || !e.l) return;
+  s.st = e.l.st; s.ms = e.l.ms; s.elapsed = e.l.el; s.samples = e.l.ms != null ? [e.l.ms] : []; s.old = true;
+}
+function deltaOf(s) {
+  const e = HIST[hkey(s)];
+  if (!e || !e.p || !e.l || (s.st !== 'ok' && s.st !== 'timeout' && s.st !== 'fail')) return null;
+  const p = e.p;
+  if (s.st === 'ok' && p.st === 'ok') {
+    const d = s.ms - p.ms;
+    return Math.abs(d) < 20 ? { d, txt: '≈', cls: '' } : { d, txt: (d > 0 ? '↑' : '↓') + Math.abs(d), cls: d > 0 ? 'up' : 'down' };
+  }
+  if (s.st === 'ok') return { d: null, txt: '上次不通', cls: 'down' };
+  if (p.st === 'ok') return { d: null, txt: '上次 ' + p.ms + 'ms', cls: 'up' };
+  return null;
+}
+const stName = (g, st) => g === 'gfw' && st === 'fail' ? '阻断' : ST_LABEL[st];
+const stLabel = s => stName(s.g, s.st);
+
 /* GFW 自选列表（存在 localStorage） */
 const GFW_KEY = 'split-test.gfw.v1';
-const GFW_DEFAULT = ['www.google.com','www.youtube.com','www.facebook.com','x.com','www.instagram.com','telegram.org',
-  'www.wikipedia.org','www.reddit.com','chatgpt.com','claude.ai','github.com','discord.com','www.twitch.tv',
-  'www.pixiv.net','www.nytimes.com','www.bbc.com'];
+const GFW_DEFAULT = ['telegram.org','t.me','signal.org','bsky.app','zh.wikipedia.org','www.pixiv.net','www.bbc.com','www.dw.com','www.voachinese.com','www.rfa.org','www.v2ex.com','proton.me','www.torproject.org','www.patreon.com','www.google.com.hk'];
 let gfwSeq = 0;
 const normHost = v => {
   v = String(v || '').trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[\/?#].*$/, '')
@@ -569,8 +618,9 @@ function dropGfw(s) {
   const k = SITES.indexOf(s);
   if (k >= 0) SITES.splice(k, 1);
   s.el.remove();
+  delete HIST[hkey(s)];
 }
-function listChanged() { saveGfw(); renderChips(); applyFilter(); renderSummary(); }
+function listChanged() { saveGfw(); saveHist(); renderChips(); applyFilter(); renderSummary(); }
 
 let view = 'all', cat = '全部', running = false, token = 0, masked = false;
 const ctrls = new Set();
@@ -583,7 +633,7 @@ function makeTile(s) {
   const el = document.createElement('div');
   el.className = 'tile idle';
   el.innerHTML = '<div class="t1"><span class="name"></span><span class="lat num"></span></div>' +
-                 '<div class="t2"><span class="host"></span>' +
+                 '<div class="t2"><span class="host"></span><span class="dl num"></span>' +
                  (s.g === 'gfw' ? '<span class="del" title="从列表删除">×</span>' : '<span class="cat"></span>') + '</div><i class="meter"></i>';
   el.querySelector('.name').textContent = s.name;
   el.querySelector('.host').textContent = s.host;
@@ -599,6 +649,7 @@ function makeTile(s) {
   el.addEventListener('click', () => { if (!running) run([s]); });
   s.el = el;
   $('#grid-' + s.g).appendChild(el);
+  restoreSite(s);
   paint(s);
 }
 
@@ -616,14 +667,21 @@ function paint(s) {
     m.style.width = Math.max(6, Math.min(100, s.ms / 15)) + '%';
   } else {
     m.style.width = '';
-    lat.textContent = s.st === 'idle' ? '—' : (s.g === 'gfw' && s.st === 'fail' ? '阻断' : ST_LABEL[s.st]);
+    lat.textContent = s.st === 'idle' ? '—' : stLabel(s);
   }
+  if (s.old) cls += ' old';
+  const dl = el.querySelector('.dl'), dv = deltaOf(s);
+  dl.textContent = dv ? dv.txt : '';
+  dl.className = 'dl num' + (dv && dv.cls ? ' ' + dv.cls : '');
   el.className = cls;
   let tip = `${s.name}\nhttps://${s.host}\n`;
   if (s.st === 'ok') tip += `延迟 ${s.ms} ms` + (s.samples.length > 1 ? `（各次：${s.samples.join(' / ')} ms）` : '') +
     (s.first != null && s.first !== s.ms ? `\n首次请求（含建连）${s.first} ms` : '');
   else if (s.st === 'timeout') tip += `超时：${s.elapsed} ms 内无响应`;
-  else if (s.st === 'fail') tip += `失败：${s.elapsed} ms 时报错`;
+  else if (s.st === 'fail') tip += `${stLabel(s)}：${s.elapsed} ms 时报错`;
+  const he = HIST[hkey(s)];
+  if (he && he.l && s.old) tip += `\n这是 ${fmtT(he.l.t)} 的结果` + (he.l.ip ? `（出口 ${masked ? '已隐藏' : he.l.ip}）` : '');
+  if (he && he.p) tip += `\n上一次 ${fmtT(he.p.t)}：${he.p.st === 'ok' ? he.p.ms + ' ms' : stName(s.g, he.p.st)}` + (he.p.ip ? `（出口 ${masked ? '已隐藏' : he.p.ip}）` : '');
   el.title = tip + '\n点击单独重测';
 }
 
@@ -728,7 +786,8 @@ async function run(list) {
   const my = ++token;
   setRunningUI(true);
   const opt = { timeout: +$('#timeout').value, conc: +$('#conc').value, rounds: +$('#rounds').value, mode: $('#mode').value };
-  list.forEach(s => { s.st = 'queued'; s.ms = null; s.first = null; s.samples = []; paint(s); });
+  list.forEach(s => { s.st = 'queued'; s.ms = null; s.first = null; s.samples = []; s.old = false; paint(s); });
+  runNote = '';
   $('#hints').innerHTML = '';
   scheduleSummary();
 
@@ -744,6 +803,7 @@ async function run(list) {
       const s = list[i++];
       await testSite(s, opt, my);
       if (my !== token) return;
+      record(s); paint(s);
       done++; prog(); scheduleSummary();
     }
   };
@@ -752,6 +812,14 @@ async function run(list) {
   running = false;
   setRunningUI(false);
   prog(' · 完成');
+  const ipNow = ipTag();
+  if (list.length > 1) {
+    if (RUN.l && RUN.l.ip && ipNow && RUN.l.ip !== ipNow)
+      runNote = `出口 IP 和上次测试（${fmtT(RUN.l.t)}）不同：${RUN.l.ip} → ${ipNow}，延迟变化可能来自换了出口。`;
+    if (RUN.l) RUN.p = RUN.l;
+    RUN.l = { t: Date.now(), ip: ipNow, n: list.length };
+  }
+  saveHist();
   if ($('#sort').value === 'lat') applySort();
   renderSummary();
   renderHints();
@@ -764,6 +832,7 @@ function stop() {
   SITES.forEach(s => { if (s.st === 'queued' || s.st === 'testing') { s.st = 'idle'; paint(s); } });
   running = false;
   setRunningUI(false);
+  saveHist();
   $('#prog').textContent += ' · 已停止';
   renderSummary();
 }
@@ -775,6 +844,7 @@ function setRunningUI(on) {
   b.classList.toggle('primary', !on);
   $('#retryBtn').disabled = on;
   $('#csvBtn').disabled = on;
+  $('#clearBtn').disabled = on;
 }
 
 /* ===================== 统计 ===================== */
@@ -837,6 +907,12 @@ function renderHints() {
       out.push(['warn', `${n}站点有 ${st.done - st.ok} 个不可达，可点「重测失败」复查；个别站点也可能被广告拦截插件拦了，或是站点自身的问题。`]);
     if (st.med != null && st.med > 1500)
       out.push(['warn', `${n}站点中位延迟 ${st.med}ms，明显偏高，流量可能绕经远端节点；如果这些站点本应直连，请检查规则。`]);
+  }
+  if (runNote && !masked) out.push(['info', runNote]);
+  const tested = SITES.filter(s => !s.old && deltaOf(s));
+  if (tested.length > 1) {
+    const up = tested.filter(s => deltaOf(s).cls === 'up').length, down = tested.filter(s => deltaOf(s).cls === 'down').length;
+    out.push(['info', `和上一次相比：${down} 个变好，${up} 个变差，${tested.length - up - down} 个基本不变（相差不到 20ms）。`]);
   }
   const f = gstats('gfw');
   if (f.done) {
@@ -986,9 +1062,10 @@ function verdictIP() {
 
 /* ===================== 导出 ===================== */
 function exportCSV() {
-  const rows = [['分组', '名称', '域名', '分类', '状态', '延迟(ms)', '各次(ms)', '首次含建连(ms)', '耗时(ms,失败/超时)']];
-  SITES.forEach(s => rows.push([GROUP[s.g].name, s.name, s.host, s.cat, ST_LABEL[s.st],
-    s.st === 'ok' ? s.ms : '', s.samples.join('/'), s.st === 'ok' && s.first != null ? s.first : '', (s.st === 'timeout' || s.st === 'fail') ? s.elapsed : '']));
+  const rows = [['分组', '名称', '域名', '分类', '状态', '延迟(ms)', '各次(ms)', '首次含建连(ms)', '耗时(ms,失败/超时)', '上次状态', '上次延迟(ms)', '变化(ms)']];
+  SITES.forEach(s => rows.push([GROUP[s.g].name, s.name, s.host, s.cat, stLabel(s),
+    s.st === 'ok' ? s.ms : '', s.samples.join('/'), s.st === 'ok' && s.first != null ? s.first : '', (s.st === 'timeout' || s.st === 'fail') ? s.elapsed : '',
+    ...(e => { const p = e && e.p, d = deltaOf(s); return [p ? stName(s.g, p.st) : '', p && p.st === 'ok' ? p.ms : '', d && d.d != null ? d.d : '']; })(HIST[hkey(s)])]));
   const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const d = new Date(), p = n => String(n).padStart(2, '0');
   const a = document.createElement('a');
@@ -1004,12 +1081,21 @@ function exportCSV() {
 $('#startBtn').addEventListener('click', () => running ? stop() : run(SITES.filter(visible)));
 $('#retryBtn').addEventListener('click', () => run(SITES.filter(s => visible(s) && (s.st === 'timeout' || s.st === 'fail'))));
 $('#csvBtn').addEventListener('click', exportCSV);
+$('#clearBtn').addEventListener('click', () => {
+  if (running || !confirm('清除保存在本机的所有测试结果？（GFW 自选列表不受影响）')) return;
+  HIST = {}; RUN = {}; runNote = ''; saveHist();
+  SITES.forEach(s => { s.st = 'idle'; s.ms = null; s.first = null; s.elapsed = null; s.samples = []; s.old = false; paint(s); });
+  $('#hints').innerHTML = ''; $('#prog').textContent = '记录已清除';
+  renderSummary();
+});
 $('#sort').addEventListener('change', applySort);
 $('#ipBtn').addEventListener('click', checkIP);
 $('#maskBtn').addEventListener('click', () => {
   masked = !masked;
   $('#maskBtn').textContent = masked ? '显示 IP' : '隐藏 IP';
   [...ipRows.cn, ...ipRows.intl].forEach(paintIP);
+  SITES.forEach(paint);
+  renderHints();
 });
 $('#viewSeg').addEventListener('click', e => {
   const b = e.target.closest('button[data-v]');
@@ -1047,6 +1133,7 @@ buildTiles();
 renderChips();
 applyFilter();
 renderSummary();
+if (RUN.l) $('#prog').textContent = `已载入上次结果（${fmtT(RUN.l.t)}）· 点「开始测试」重测并对比`;
 checkIP();
 </script>
 </body>
